@@ -26,7 +26,7 @@ At least a day before the release:
       This is recommended especially when dealing with PPA for the first time, when we add a new Ubuntu version or when the PPA scripts were modified in this release cycle.
 - [ ] Verify that the release tarball of `solc-js` works.
       Bump version locally, add `soljson.js` from CI, build it, compare the file structure with the previous version, install it locally and try to use it.
-- [ ] Review [Learning from Past Releases](https://notes.ethereum.org/@solidity/release-mistakes) to make sure you don't repeat the same mistakes.
+- [ ] Review [Learning from Past Releases](https://notes.argot.org/@solidity-release-mistakes) to make sure you don't repeat the same mistakes.
 
 ### Drafts
 At least a day before the release:
@@ -85,10 +85,7 @@ At least a day before the release:
 
 ### PPA
 - [ ] Create `.release_ppa_auth` at the root of your local Solidity checkout and set `LAUNCHPAD_EMAIL` and `LAUNCHPAD_KEYID` to your key's email and key id.
-- [ ] Double-check that the `DISTRIBUTIONS` list in `scripts/release_ppa.sh` and `scripts/deps-ppa/static_z3.sh` contains the most recent versions of Ubuntu.
-- [ ] Make sure the [`~ethereum/cpp-build-deps` PPA repository](https://launchpad.net/~ethereum/+archive/ubuntu/cpp-build-deps) contains `libz3-static-dev` builds for all current versions of Ubuntu.
-      Note that it may be included in the `z3-static` multipackage (follow the `View package details` link to check).
-      If not present, run `scripts/deps-ppa/static_z3.sh` and wait for the builds to succeed before continuing.
+- [ ] Double-check that the `DISTRIBUTIONS` list in `scripts/release_ppa.sh` contains the most recent versions of Ubuntu.
 - [ ] Run `scripts/release_ppa.sh v$VERSION` to create the PPA release.
       This will create a single package containing static binary for older Ubuntu versions in the [`~ethereum/ethereum-static` PPA](https://launchpad.net/~ethereum/+archive/ubuntu/ethereum-static)
       and separate packages with dynamically-linked binaries for recent versions (those listed in `DISTRIBUTIONS`) in the [`~ethereum/ethereum` PPA](https://launchpad.net/~ethereum/+archive/ubuntu/ethereum).
@@ -122,6 +119,6 @@ At least a day before the release:
 - [ ] Share the announcement on [Project Updates](https://discord.com/channels/420394352083337236/798974456704925696)
 - [ ] Share the announcement on [`#solidity` channel on Matrix](https://matrix.to/#/#ethereum_solidity:gitter.im)
 - [ ] Share the announcement on [`#solc-tooling`](https://matrix.to/#/#solc-tooling:matrix.org)
-- [ ] If anything went wrong this time, mention it in [Learning from Past Releases](https://notes.ethereum.org/@solidity/release-mistakes).
+- [ ] If anything went wrong this time, mention it in [Learning from Past Releases](https://notes.argot.org/@solidity-release-mistakes).
 - [ ] Bump vendored dependencies.
 - [ ] Lean back, wait for bug reports and repeat from step 1 :).

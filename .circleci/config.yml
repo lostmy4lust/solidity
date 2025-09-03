@@ -34,7 +34,7 @@ parameters:
     default: "solbuildpackpusher/solidity-buildpack-deps@sha256:98f963ed799a0d206ef8e7b5475f847e0dea53b7fdea9618bbc6106a62730bd2"
   evm-version:
     type: string
-    default: cancun
+    default: prague
 
 orbs:
   win: circleci/windows@2.2.0
@@ -127,7 +127,7 @@ commands:
             if [[ "<< parameters.packages >>" != "" ]]
             then
               echo "Installing additional packages..."
-              python3 -m pip install --user << parameters.packages >>
+              python3 -m pip install --user --break-system-packages << parameters.packages >>
             fi
 
   install_foundry:
@@ -385,7 +385,7 @@ commands:
           name: Installing dependencies / Restoring dependency cache
           command: |
             if [[ -f ~/osx-dependencies-cached ]]; then
-              echo "Dependency flag exists. Removing /usr/local/ and /opt/homebrew/. These directories will be restored from cache."
+              echo "Dependency flag exists. Removing /usr/local/, /opt/homebrew/, and /opt/boost. These directories will be restored from cache."
 
               # CircleCI is providing the circleci cli tools via some kind of symlink magic.
               # So we just save the original symlinks and restore them later.
@@ -404,6 +404,10 @@ commands:
               sudo rm -rf /usr/local/*
               sudo mkdir -p /usr/local/bin
               sudo chmod 777 /usr/{local,local/bin}
+
+              sudo rm -rf /opt/boost
+              sudo mkdir -p /opt/boost
+              sudo chmod 777 /opt/boost
 
               mv /tmp/circleci "${circleci_binary_path}"
               mv /tmp/circleci-agent "${circleci_agent_binary_path}"
@@ -425,6 +429,7 @@ commands:
             # Homebrew is installed in /usr/local on intel macs, but in /opt/homebrew on apple silicon.
             - /usr/local
             - /opt/homebrew
+            - /opt/boost
       - save_cache:
           key: osx-dependencies-cached-{{ arch }}-{{ checksum ".circleci/osx_install_dependencies.sh" }}
           paths:
@@ -774,7 +779,7 @@ defaults:
       name: t_native_test_ext_ens
       project: ens
       binary_type: native
-      image: cimg/node:18.16
+      image: cimg/node:lts
 
   - job_native_compile_ext_trident: &job_native_compile_ext_trident
       <<: *requires_b_ubu_static
@@ -818,14 +823,15 @@ defaults:
       # NOTE: test suite disabled due to dependence on a specific version of Hardhat
       # which does not support shanghai EVM.
       compile_only: 1
-      image: cimg/node:18.16
+      image: cimg/node:lts
 
   - job_native_test_ext_uniswap: &job_native_test_ext_uniswap
       <<: *requires_b_ubu_static
       name: t_native_test_ext_uniswap
       project: uniswap
       binary_type: native
-      image: cimg/node:18.16
+      image: cimg/node:lts
+      resource_class: medium # Tests run out of memory on a smaller machine
 
   - job_native_test_ext_prb_math: &job_native_test_ext_prb_math
       <<: *requires_b_ubu_static
@@ -842,7 +848,7 @@ defaults:
       name: t_native_test_ext_elementfi
       project: elementfi
       binary_type: native
-      image: cimg/node:18.16
+      image: cimg/node:lts
       resource_class: medium
 
   - job_native_test_ext_brink: &job_native_test_ext_brink
@@ -850,7 +856,7 @@ defaults:
       name: t_native_test_ext_brink
       project: brink
       binary_type: native
-      image: cimg/node:18.16
+      image: cimg/node:lts
 
   - job_native_compile_ext_chainlink: &job_native_compile_ext_chainlink
       <<: *requires_b_ubu_static
@@ -870,7 +876,7 @@ defaults:
       binary_type: native
       # NOTE: test suite disabled due to constant failures.
       compile_only: 1
-      image: cimg/node:18.16
+      image: cimg/node:lts
 
   - job_b_ubu_asan_clang: &job_b_ubu_asan_clang
       <<: *on_all_tags_and_branches
@@ -946,6 +952,8 @@ jobs:
   chk_pylint:
     <<: *base_ubuntu2404_small
     steps:
+      - install_python3:
+          packages: pyyaml jsonschema pytest
       - checkout
       - run: pylint --version
       - run:
@@ -1159,7 +1167,8 @@ jobs:
     environment:
       <<: *base_osx_env
       CMAKE_BUILD_TYPE: Release
-      CMAKE_OPTIONS: -DCMAKE_OSX_ARCHITECTURES:STRING=x86_64;arm64
+      # boost root configured to the prefix used in `osx_install_dependencies.sh`
+      CMAKE_OPTIONS: -DCMAKE_OSX_ARCHITECTURES:STRING=x86_64;arm64 -DBoost_ROOT=/opt/boost
     steps:
       - checkout
       - install_dependencies_osx
@@ -1527,6 +1536,19 @@ jobs:
           paths:
             - reports/externalTests/
       - matrix_notify_failure_unless_pr
+
+  t_ethdebug_output_validity:
+    <<: *base_node_small
+    steps:
+      - checkout
+      - attach_workspace:
+          at: /tmp/workspace
+      - install_python3:
+            packages: pyyaml jsonschema pytest
+      - run:
+          name: Ethdebug validity tests
+          command: |
+            pytest test/ethdebugSchemaTests --solc-binary-path=/tmp/workspace/solc/solc-static-linux -v
 
   c_ext_benchmarks:
     <<: *base_node_small
@@ -1920,6 +1942,9 @@ workflows:
       #- t_ext: *job_native_compile_ext_trident
       #- t_ext: *job_native_compile_ext_chainlink
       #- t_ext: *job_native_compile_ext_bleeps
+
+      - t_ethdebug_output_validity:
+          <<: *requires_b_ubu_static
 
       - c_ext_benchmarks:
           <<: *requires_nothing
